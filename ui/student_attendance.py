@@ -60,7 +60,7 @@ class StudentAttendanceWindow:
         # Attendance List
         self.attendance_tree = ttk.Treeview(
             self.window, 
-            columns=("Student ID", "Name", "Time "), 
+            columns=("Student ID", "Name", "Time"), 
             show='headings', 
             height=15
         )
@@ -76,13 +76,13 @@ class StudentAttendanceWindow:
         """
         try:
             # Attempt to fetch subjects from subjects collection
-            subjects_cursor = self.db_manager.collection['subjects'].find({}, {'name': 1})
+            subjects_cursor = self.db_manager.get_collection('subjects').find({}, {'name': 1})
             subjects = [subject.get('name', 'Unknown Subject') for subject in subjects_cursor]
             
             # If no subjects found, try alternative collections
             if not subjects:
                 # Attempt to extract unique subjects from attendance records
-                subjects_cursor = self.db_manager.collection['attendance'].distinct('subject')
+                subjects_cursor = self.db_manager.get_collection('attendance').distinct('subject')
                 subjects = list(subjects_cursor)
             
             # Fallback to predefined list if still no subjects
@@ -128,31 +128,11 @@ class StudentAttendanceWindow:
         Insert default subjects into the database if they don't exist
         """
         try:
-            # Batch insert subjects
-            subject_docs = [
-                {
-                    'name': subject, 
-                    'code': subject[:3].upper(), 
-                    'created_at': datetime.datetime.now()
-                } 
-                for subject in subjects
-            ]
-            
-            # Use bulk write for efficiency
-            bulk_operations = [
-                pymongo.UpdateOne(
-                    {'name': doc['name']}, 
-                    {'$set': doc}, 
-                    upsert=True
-                ) 
-                for doc in subject_docs
-            ]
-            
-            # Execute bulk write
-            self.db_manager.collection['subjects'].bulk_write(bulk_operations)
-            
-            self.logger.info("Default subjects inserted successfully")
-        
+            inserted_ids = self.db_manager.insert_subjects(subjects)
+            if inserted_ids:
+                self.logger.info("Default subjects inserted successfully")
+            else:
+                self.logger.warning("No subjects were inserted")
         except Exception as e:
             self.logger.warning(f"Could not insert default subjects: {e}")
     
@@ -227,80 +207,14 @@ class StudentAttendanceWindow:
     
         add_button = ttk.Button(add_frame, text="Add Subject", command=add_subject)
         add_button.pack(side=tk.RIGHT)
-    
-    # Sample Database Configuration Update
-    class MongoDBManager:
-        def __init__(self):
-            # Existing initialization
-            self.client = pymongo.MongoClient(MONGO_URL)
-            self.db = self.client[MONGO_DB]
-            
-            # Initialize the collections as attributes
-            self.subjects_collection = self.db['subjects']
-            self.attendance_collection = self.db['attendance']
-            
-            # Ensure that indexes are created for collections
-            self.subjects_collection.create_index([('name', pymongo.ASCENDING)], unique=True)
-
-        def _get_subjects(self):
-            """
-            Fetch subjects from the database with comprehensive error handling
-            and fallback mechanism.
-            """
-            try:
-                # Attempt to fetch subjects from subjects collection
-                subjects_cursor = self.db_manager.subjects_collection.find({}, {'name': 1})
-                subjects = [subject.get('name', 'Unknown Subject') for subject in subjects_cursor]
-                
-                # If no subjects found, try alternative collections
-                if not subjects:
-                    # Attempt to extract unique subjects from attendance records
-                    subjects_cursor = self.db_manager.attendance_collection.distinct('subject')
-                    subjects = list(subjects_cursor)
-                
-                # Fallback to predefined list if still no subjects
-                if not subjects:
-                    subjects = [
-                        "Mathematics", 
-                        "Science", 
-                        "History", 
-                        "English", 
-                        "Computer Science", 
-                        "Physics", 
-                        "Chemistry"
-                    ]
-                    
-                    # Optional: Insert fallback subjects into database
-                    self._insert_default_subjects(subjects)
-                
-                return subjects
-    
-            except Exception as e:
-                # Comprehensive logging
-                self.logger.error(f"Error retrieving subjects: {e}")
-                
-                # User-friendly error handling
-                messagebox.showwarning(
-                    "Subject Retrieval Error", 
-                    "Could not fetch subjects. Using default list."
-                )
-                
-                # Return predefined list as last resort
-                return [
-                    "Mathematics", 
-                    "Science", 
-                    "History", 
-                    "English", 
-                    "Computer Science", 
-                    "Physics", 
-                    "Chemistry"
-                ]
-            
+        
 
     def _capture_attendance(self):
         # Open camera for face recognition
         cap = cv2.VideoCapture(0)
-        recognized_students = []
+        recognized_students = set()
+        today_date = datetime.datetime.now().date()
+        subject = self.subject_var.get()
 
         while True:
             ret, frame = cap.read()
@@ -313,22 +227,39 @@ class StudentAttendanceWindow:
                 # Attempt to recognize
                 student_id, confidence = self.face_recognizer.recognize_face(face_img)
 
-                if student_id:
+                if student_id and student_id not in recognized_students:
                     # Verify student in database
-                    student = self.db_manager.find_documents(
+                    student_cursor = self.db_manager.find_documents(
                         'students', 
                         {'student_id': student_id}
                     )
 
-                    if student:
+                    for student in student_cursor:
                         student_name = student['name']
-                        recognized_students.append(student_id)
-                        self.attendance_tree.insert('', 'end', values=(student_id, student_name, datetime.datetime.now()))
+                        # Check if attendance already recorded for this student, subject, and date
+                        existing_attendance = self.db_manager.find_documents(
+                            'attendance', 
+                            {'student_id': student_id, 'subject': subject, 'date': datetime.datetime.combine(today_date, datetime.datetime.min.time())}
+                        )
+                        if len(list(existing_attendance)) == 0:
+                            recognized_students.add(student_id)
+                            self.attendance_tree.insert('', 'end', values=(student_id, student_name, datetime.datetime.now()))
+                            
+                            # Log attendance in the database
+                            self.db_manager.insert_document('attendance', {
+                                'student_id': student_id,
+                                'name': student_name,
+                                'subject': subject,
+                                'date': datetime.datetime.combine(today_date, datetime.datetime.min.time()),  # Convert to datetime
+                                'time': datetime.datetime.now()
+                            })
 
             cv2.imshow("Face Recognition", frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q') or len(recognized_students) > 0:
                 break
 
         cap.release()
         cv2.destroyAllWindows()
+        messagebox.showinfo("Attendance", "Attendance captured successfully!")
+        self.window.destroy()

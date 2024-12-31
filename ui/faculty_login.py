@@ -5,6 +5,7 @@ import os
 from models.database import MongoDBManager
 from models.face_recognition import FaceRecognition
 from config import DIRECTORIES
+from ui.faculty_window import FacultyWindow
 
 
 class FacultyLoginWindow:
@@ -96,6 +97,7 @@ class FacultyLoginWindow:
             if faculty:
                 messagebox.showinfo("Login Success", f"Welcome {faculty[0]['name']}")
                 login_window.destroy()
+                FacultyWindow(self.parent)
             else:
                 messagebox.showerror("Error", "Invalid credentials. Please try again.")
 
@@ -132,6 +134,7 @@ class FacultyLoginWindow:
                 report = tk.Toplevel(self.window)
                 report.title("Manual Login")
                 report.geometry("400x300")
+                FacultyWindow(self.parent)
                 break
 
             cv2.imshow('Faculty Login', frame)
@@ -227,4 +230,4 @@ class FacultyLoginWindow:
             bg="#3498db", fg="white", command=capture_and_train_faces
         )
         register_btn.pack(pady=20)
-        
+

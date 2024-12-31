@@ -7,6 +7,7 @@ import seaborn as sns
 from models.database import MongoDBManager
 import datetime
 import logging
+from tkcalendar import DateEntry
 
 class ReportsWindow:
     def __init__(self, parent):
@@ -41,12 +42,12 @@ class ReportsWindow:
 
         ttk.Label(date_frame, text="From Date:").pack(side=tk.LEFT)
         self.from_date = tk.StringVar()
-        from_entry = ttk.Entry(date_frame, textvariable=self.from_date)
+        from_entry = DateEntry(date_frame, textvariable=self.from_date, date_pattern='yyyy-mm-dd')
         from_entry.pack(side=tk.LEFT, padx=5)
 
         ttk.Label(date_frame, text="To Date:").pack(side=tk.LEFT)
         self.to_date = tk.StringVar()
-        to_entry = ttk.Entry(date_frame, textvariable=self.to_date)
+        to_entry = DateEntry(date_frame, textvariable=self.to_date, date_pattern='yyyy-mm-dd')
         to_entry.pack(side=tk.LEFT, padx=5)
 
         # Generate Report Button
@@ -99,7 +100,7 @@ class ReportsWindow:
         # Subject Report Tree
         self.subject_tree = ttk.Treeview(
             subject_frame, 
-            columns=("Student ID", "Name", "Total Classes", "Attended", "Percentage"),
+            columns=("Student ID", "Name", "Total Classes", "Attended", "Percentage", "Time"),
             show="headings"
         )
         self.subject_tree.heading("Student ID", text="Student ID")
@@ -107,6 +108,7 @@ class ReportsWindow:
         self.subject_tree.heading("Total Classes", text="Total Classes")
         self.subject_tree.heading("Attended", text="Attended")
         self.subject_tree.heading("Percentage", text="Percentage")
+        self.subject_tree.heading("Time", text="Time")
         self.subject_tree.pack(expand=True, fill='both', padx=10, pady=10)
 
     def _create_student_report_tab(self):
@@ -194,6 +196,7 @@ class ReportsWindow:
         to_date = self.to_date.get()
         try:
             report_data = self.db_manager.get_overall_attendance(from_date, to_date)
+            self.overall_tree.delete(*self.overall_tree.get_children())  # Clear previous data
             for row in report_data:
                 self.overall_tree.insert("", "end", values=row)
             self.logger.info("Overall attendance report generated successfully")
@@ -206,6 +209,7 @@ class ReportsWindow:
         subject = self.subject_var.get()
         try:
             report_data = self.db_manager.get_subject_attendance(subject)
+            self.subject_tree.delete(*self.subject_tree.get_children())  # Clear previous data
             for row in report_data:
                 self.subject_tree.insert("", "end", values=row)
             self.logger.info(f"Subject attendance report for {subject} generated successfully")

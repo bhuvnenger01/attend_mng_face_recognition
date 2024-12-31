@@ -11,6 +11,7 @@ class FaceRecognition:
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         self.model = KNeighborsClassifier(n_neighbors=1)
         self.model_file = "face_recognition_model.pkl"
+        self.image_size = (100, 100)  # Consistent image size for training and recognition
         self._load_model()
 
     def _load_model(self):
@@ -42,7 +43,8 @@ class FaceRecognition:
             if img_file.endswith(".jpg"):
                 img_path = os.path.join(faculty_faces, img_file)
                 img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-                images.append(img.flatten())
+                img_resized = cv2.resize(img, self.image_size)  # Resize image
+                images.append(img_resized.flatten())
                 labels.append(os.path.basename(faculty_faces))  # Use folder name as label
 
         if images:
@@ -59,8 +61,9 @@ class FaceRecognition:
         try:
             if not self.is_model_trained():
                 raise ValueError("Model has not been trained yet.")
-            face_img = normalize(face_img.flatten().reshape(1, -1))
-            label = self.model.predict(face_img)
+            face_img_resized = cv2.resize(face_img, self.image_size)  # Resize image
+            face_img_normalized = normalize(face_img_resized.flatten().reshape(1, -1))
+            label = self.model.predict(face_img_normalized)
             return label[0], 100  # Returning dummy confidence
         except Exception as e:
             print(f"Error: {e}")
