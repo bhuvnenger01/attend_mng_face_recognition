@@ -257,7 +257,7 @@ class StudentAttendanceWindow:
                             messagebox.showinfo("Attendance", f"Attendance for {student_name} already recorded for today.")
                             cap.release()
                             cv2.destroyAllWindows()
-                            self.window.destroy()
+                            self._reset_window()
                             return
 
             cv2.imshow("Face Recognition", frame)
@@ -269,4 +269,9 @@ class StudentAttendanceWindow:
         cv2.destroyAllWindows()
         if not recognized_students:
             messagebox.showinfo("Attendance", "No new attendance captured.")
-        self.window.destroy()
+        self._reset_window()
+
+    def _reset_window(self):
+        self.subject_var.set('')
+        for item in self.attendance_tree.get_children():
+            self.attendance_tree.delete(item)
