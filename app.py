@@ -8,7 +8,6 @@ def main():
     try:
         root = tk.Tk()
         app = MainWindow(root)
-        app.apply_theme("light")  # Set initial theme to light
         root.mainloop()
     except Exception as e:
         logging.critical(f"Application startup error: {e}")

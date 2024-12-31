@@ -16,9 +16,8 @@ class FacultyWindow:
         self._create_faculty_window()
 
     def _create_faculty_window(self):
-        self.window = tk.Toplevel(self.parent)
-        self.window.title("Faculty Window")
-        self.window.geometry("800x600")
+        self.window = tk.Frame(self.parent)
+        self.window.pack(expand=True, fill='both')
 
         # Register Student Faces Button
         register_btn = tk.Button(
@@ -31,28 +30,37 @@ class FacultyWindow:
         )
         register_btn.pack(pady=20)
 
+        # Logout Button
+        logout_btn = tk.Button(
+            self.window, 
+            text="Logout", 
+            command=self._logout,
+            font=("Arial", 16),
+            bg="#e74c3c",
+            fg="white"
+        )
+        logout_btn.pack(pady=20)
+
     def _register_student_faces(self):
         """
         Register student faces using images from a specific folder.
         """
-        reg_window = tk.Toplevel(self.window)
-        reg_window.title("Register Student Faces")
-        reg_window.geometry("400x400")
-        reg_window.configure(bg="#f0f0f0")
+        reg_frame = tk.Frame(self.window)
+        reg_frame.pack(expand=True, fill='both')
 
         # Title
         tk.Label(
-            reg_window, text="Student Registration", font=("Arial", 16, "bold"), bg="#2c3e50", fg="white"
+            reg_frame, text="Student Registration", font=("Arial", 16, "bold"), bg="#2c3e50", fg="white"
         ).pack(fill=tk.X, pady=10)
 
         # Student ID
-        tk.Label(reg_window, text="Student ID", font=("Arial", 12), bg="#f0f0f0").pack(pady=5)
-        student_id_entry = tk.Entry(reg_window, width=30, font=("Arial", 10))
+        tk.Label(reg_frame, text="Student ID", font=("Arial", 12), bg="#f0f0f0").pack(pady=5)
+        student_id_entry = tk.Entry(reg_frame, width=30, font=("Arial", 10))
         student_id_entry.pack()
 
         # Name
-        tk.Label(reg_window, text="Name", font=("Arial", 12), bg="#f0f0f0").pack(pady=5)
-        name_entry = tk.Entry(reg_window, width=30, font=("Arial", 10))
+        tk.Label(reg_frame, text="Name", font=("Arial", 12), bg="#f0f0f0").pack(pady=5)
+        name_entry = tk.Entry(reg_frame, width=30, font=("Arial", 10))
         name_entry.pack()
 
         # Select Images Button
@@ -65,7 +73,7 @@ class FacultyWindow:
                 name_entry.insert(0, os.path.basename(folder_selected))
 
         select_images_btn = tk.Button(
-            reg_window, text="Select Images Folder", font=("Arial", 12),
+            reg_frame, text="Select Images Folder", font=("Arial", 12),
             bg="#3498db", fg="white", command=select_images
         )
         select_images_btn.pack(pady=10)
@@ -112,12 +120,18 @@ class FacultyWindow:
                     'name': student_name
                 })
                 messagebox.showinfo("Success", "Student registered successfully!")
-                reg_window.destroy()
+                reg_frame.destroy()
             else:
                 messagebox.showerror("Error", "Not enough face images captured.")
 
         register_btn = tk.Button(
-            reg_window, text="Capture and Register Face", font=("Arial", 12),
+            reg_frame, text="Capture and Register Face", font=("Arial", 12),
             bg="#3498db", fg="white", command=capture_and_register_faces
         )
         register_btn.pack(pady=20)
+
+    def _logout(self):
+        for widget in self.parent.winfo_children():
+            widget.destroy()
+        from ui.faculty_login import FacultyLoginWindow
+        FacultyLoginWindow(self.parent)

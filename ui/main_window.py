@@ -50,79 +50,38 @@ class MainWindow:
         self.style.theme_use("clam")
         
         # Set up the UI
-        self._setup_ui()
+        self._create_main_window()
 
-    def _setup_ui(self):
-        # Menu for dark mode toggle
-        menu_bar = tk.Menu(self.root)
-        theme_menu = tk.Menu(menu_bar, tearoff=0)
-        theme_menu.add_command(label="Toggle Dark Mode", command=self.toggle_theme)
-        menu_bar.add_cascade(label="Options", menu=theme_menu)
-        self.root.config(menu=menu_bar)
+    def _create_main_window(self):
+        # Create notebook for different functionalities
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
 
-        # Main container
-        self.main_container = ttk.Frame(self.root)
-        self.main_container.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
+        # Create tabs
+        self._create_faculty_login_tab()
+        self._create_student_attendance_tab()
+        self._create_reports_tab()
+        self._create_manual_attendance_tab()
 
-        # Title
-        self.title = ttk.Label(
-            self.main_container,
-            text="Intelligent Attendance Management System",
-            font=("Arial", 24, "bold")
-        )
-        self.title.pack(pady=20, fill=tk.X)
+    def _create_faculty_login_tab(self):
+        faculty_login_frame = ttk.Frame(self.notebook)
+        self.notebook.add(faculty_login_frame, text="Faculty Login")
+        self.faculty_login_window = FacultyLoginWindow(faculty_login_frame)
 
-        # Button frame
-        self.button_frame = ttk.Frame(self.main_container)
-        self.button_frame.pack(expand=True)
+    def _create_student_attendance_tab(self):
+        student_attendance_frame = ttk.Frame(self.notebook)
+        self.notebook.add(student_attendance_frame, text="Student Attendance")
+        self.student_attendance_window = StudentAttendanceWindow(student_attendance_frame)
 
-        # Define buttons
-        self.buttons = [
-            {
-                "text": "Faculty Login",
-                "command": self.faculty_login,
-                "description": "Authenticate and manage faculty access"
-            },
-            {
-                "text": "Student Attendance",
-                "command": self.student_attendance,
-                "description": "Capture student attendance"
-            },
-            {
-                "text": "Manual Attendance",
-                "command": self.manual_attendance,
-                "description": "Manually enter attendance records"
-            },
-            {
-                "text": "View Reports",
-                "command": self.view_reports,
-                "description": "Generate and view attendance reports"
-            }
-        ]
+    def _create_reports_tab(self):
+        reports_frame = ttk.Frame(self.notebook)
+        self.notebook.add(reports_frame, text="Reports")
+        self.reports_window = ReportsWindow(reports_frame)
 
-        # Create buttons
-        for button_info in self.buttons:
-            btn_container = ttk.Frame(self.button_frame)
-            btn_container.pack(pady=10, padx=20, fill="x")
-
-            # Create button
-            btn = ttk.Button(
-                btn_container,
-                text=button_info["text"],
-                command=button_info["command"]
-            )
-            btn.pack(side=tk.LEFT, expand=True, fill="x")
-
-            # Description label
-            desc_label = ttk.Label(
-                btn_container,
-                text=button_info["description"],
-                font=("Arial", 10)
-            )
-            desc_label.pack(side=tk.RIGHT, padx=10)
-
-        # Apply the default theme
-        self.apply_theme(self.current_theme)
+    def _create_manual_attendance_tab(self):
+        manual_attendance_frame = ttk.Frame(self.notebook)
+        self.notebook.add(manual_attendance_frame, text="Manual Attendance")
+        self.manual_attendance_window = ManualAttendanceWindow(manual_attendance_frame)
 
     def apply_theme(self, theme_name):
         """Apply the selected theme to the application."""

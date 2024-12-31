@@ -154,6 +154,95 @@ class MongoDBManager:
             logging.error(f"Error retrieving overall attendance: {e}")
             return []
 
+    def get_student_attendance(self, student_id):
+        """
+        Retrieve attendance records for a specific student.
+        
+        :param student_id: The student ID to filter attendance records.
+        :return: List of attendance records.
+        """
+        try:
+            collection = self.get_collection('attendance')
+            pipeline = [
+                {"$match": {"student_id": student_id}},
+                {"$group": {
+                    "_id": "$subject",
+                    "total_classes": {"$sum": 1},
+                    "attended": {"$sum": 1},
+                    "percentage": {"$avg": 100}
+                }},
+                {"$sort": {"_id": 1}}
+            ]
+            result = list(collection.aggregate(pipeline))
+            return [(record["_id"], record["total_classes"], record["attended"], record["percentage"]) for record in result]
+        except Exception as e:
+            logging.error(f"Error retrieving student attendance: {e}")
+            return []
+
+    def get_attendance_by_subject(self):
+        """
+        Retrieve attendance counts grouped by subject.
+        
+        :return: List of attendance counts by subject.
+        """
+        try:
+            collection = self.get_collection('attendance')
+            pipeline = [
+                {"$group": {
+                    "_id": "$subject",
+                    "attendance_count": {"$sum": 1}
+                }},
+                {"$sort": {"_id": 1}}
+            ]
+            result = list(collection.aggregate(pipeline))
+            return [{"subject": record["_id"], "attendance_count": record["attendance_count"]} for record in result]
+        except Exception as e:
+            logging.error(f"Error retrieving attendance by subject: {e}")
+            return []
+
+    def get_student_attendance_distribution(self):
+        """
+        Retrieve the distribution of student attendance percentages.
+        
+        :return: List of student attendance percentages.
+        """
+        try:
+            collection = self.get_collection('attendance')
+            pipeline = [
+                {"$group": {
+                    "_id": "$student_id",
+                    "student_name": {"$first": "$name"},
+                    "attendance_percentage": {"$avg": 100}
+                }},
+                {"$sort": {"attendance_percentage": 1}}
+            ]
+            result = list(collection.aggregate(pipeline))
+            return [{"student_name": record["student_name"], "attendance_percentage": record["attendance_percentage"]} for record in result]
+        except Exception as e:
+            logging.error(f"Error retrieving student attendance distribution: {e}")
+            return []
+
+    def get_monthly_attendance_trend(self):
+        """
+        Retrieve monthly attendance trend.
+        
+        :return: List of monthly attendance counts.
+        """
+        try:
+            collection = self.get_collection('attendance')
+            pipeline = [
+                {"$group": {
+                    "_id": {"$dateToString": {"format": "%Y-%m", "date": "$date"}},
+                    "attendance_count": {"$sum": 1}
+                }},
+                {"$sort": {"_id": 1}}
+            ]
+            result = list(collection.aggregate(pipeline))
+            return [{"month": record["_id"], "attendance_count": record["attendance_count"]} for record in result]
+        except Exception as e:
+            logging.error(f"Error retrieving monthly attendance trend: {e}")
+            return []
+
     def __del__(self):
         if hasattr(self, 'client'):
             self.client.close()

@@ -16,10 +16,8 @@ class ReportsWindow:
         self.logger = logging.getLogger(__name__)
 
         # Create top-level window
-        self.window = tk.Toplevel(parent)
-        self.window.title("Attendance Reports Dashboard")
-        self.window.geometry("1200x800")
-        self.window.configure(background='#f0f0f0')
+        self.window = tk.Frame(parent)
+        self.window.pack(expand=True, fill='both')
 
         # Create notebook for different report types
         self.notebook = ttk.Notebook(self.window)
@@ -222,6 +220,7 @@ class ReportsWindow:
         student_id = self.student_id_var.get()
         try:
             report_data = self.db_manager.get_student_attendance(student_id)
+            self.student_tree.delete(*self.student_tree.get_children())  # Clear previous data
             for row in report_data:
                 self.student_tree.insert("", "end", values=row)
             self.logger.info(f"Student attendance report for ID {student_id} generated successfully")
@@ -230,6 +229,10 @@ class ReportsWindow:
             messagebox.showerror("Error", "Could not generate student report")
 
     def _generate_visualization(self):
+        # Clear previous visualization
+        for widget in self.viz_canvas_frame.winfo_children():
+            widget.destroy()
+
         # Generate visualizations based on selected type
         viz_type = self.viz_var.get()
         try:

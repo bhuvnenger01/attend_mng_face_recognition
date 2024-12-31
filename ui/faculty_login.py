@@ -6,7 +6,8 @@ from models.database import MongoDBManager
 from models.face_recognition import FaceRecognition
 from config import DIRECTORIES
 from ui.faculty_window import FacultyWindow
-
+import datetime
+from tkinter import ttk
 
 class FacultyLoginWindow:
     def __init__(self, parent):
@@ -16,10 +17,8 @@ class FacultyLoginWindow:
         self._create_login_window()
 
     def _create_login_window(self):
-        self.window = tk.Toplevel(self.parent)
-        self.window.title("Faculty Login")
-        self.window.geometry("800x600")
-        self.window.configure(background='#f0f0f0')
+        self.window = tk.Frame(self.parent)
+        self.window.pack(expand=True, fill='both')
 
         # Title
         title_label = tk.Label(
@@ -53,26 +52,24 @@ class FacultyLoginWindow:
         manual_login_btn.pack(pady=10)
 
     def _generate_faculty_id(self):
-      """
-      Generate a new unique Faculty ID based on the last faculty ID in the database.
-  
-      :return: New Faculty ID as a string.
-      """
-      last_faculty = self.db_manager.find_documents('faculty', {}, sort=[("faculty_id", -1)])
-      last_faculty = list(last_faculty)
-      if last_faculty:
-          last_id = last_faculty[0]["faculty_id"]
-          number = int(last_id.replace("FACULTY", ""))
-          new_id = f"FACULTY{number + 1:02d}"
-      else:
-          new_id = "FACULTY01"
-      return new_id
-    
+        """
+        Generate a new unique Faculty ID based on the last faculty ID in the database.
+        :return: New Faculty ID as a string.
+        """
+        last_faculty = self.db_manager.find_documents('faculty', {}, sort=[("faculty_id", -1)])
+        last_faculty = list(last_faculty)
+        if last_faculty:
+            last_id = last_faculty[0]["faculty_id"]
+            number = int(last_id.replace("FACULTY", ""))
+            new_id = f"FACULTY{number + 1:02d}"
+        else:
+            new_id = "FACULTY01"
+        return new_id
 
     def _manual_login(self):
         login_window = tk.Toplevel(self.window)
         login_window.title("Manual Login")
-        login_window.geometry("400x300")
+        login_window.geometry("400x400")
 
         # Faculty ID
         tk.Label(login_window, text="Faculty ID").pack()
@@ -84,26 +81,94 @@ class FacultyLoginWindow:
         password_entry = tk.Entry(login_window, show='*', width=30)
         password_entry.pack()
 
+        # Subject Selection
+        tk.Label(login_window, text="Select Subject").pack(pady=10)
+        self.subject_var = tk.StringVar()
+        subjects = self._get_subjects()
+        subject_dropdown = ttk.Combobox(
+            login_window, 
+            textvariable=self.subject_var, 
+            values=subjects,
+            font=("Arial", 14)
+        )
+        subject_dropdown.pack(pady=10)
+
         def authenticate():
             faculty_id = faculty_id_entry.get().strip()
             password = password_entry.get().strip()
+            subject = self.subject_var.get()
 
-            if not faculty_id or not password:
-                messagebox.showerror("Error", "Both fields are required.")
+            if not faculty_id or not password or not subject:
+                messagebox.showerror("Error", "All fields are required.")
                 return
 
             # Fetch user details from the database
-            faculty = self.db_manager.find_documents('faculty', {'faculty_id': faculty_id, 'password': password})
+            faculty_cursor = self.db_manager.find_documents('faculty', {'faculty_id': faculty_id, 'password': password})
+            faculty = list(faculty_cursor)
             if faculty:
                 messagebox.showinfo("Login Success", f"Welcome {faculty[0]['name']}")
                 login_window.destroy()
-                FacultyWindow(self.parent)
+                self._open_faculty_window()
             else:
                 messagebox.showerror("Error", "Invalid credentials. Please try again.")
 
         # Login Button
         login_btn = tk.Button(login_window, text="Login", command=authenticate, bg="#3498db", fg="white")
         login_btn.pack(pady=20)
+
+    def _get_subjects(self):
+        """
+        Fetch subjects from the database with comprehensive error handling
+        and fallback mechanism.
+        """
+        try:
+            subjects_cursor = self.db_manager.get_collection('subjects').find({}, {'name': 1})
+            subjects = [subject.get('name', 'Unknown Subject') for subject in subjects_cursor]
+            
+            if not subjects:
+                subjects_cursor = self.db_manager.get_collection('attendance').distinct('subject')
+                subjects = list(subjects_cursor)
+            
+            if not subjects:
+                subjects = [
+                    "Mathematics", 
+                    "Science", 
+                    "History", 
+                    "English", 
+                    "Computer Science", 
+                    "Physics", 
+                    "Chemistry"
+                ]
+                
+                self._insert_default_subjects(subjects)
+            
+            return subjects
+        
+        except Exception as e:
+            self.logger.error(f"Error retrieving subjects: {e}")
+            messagebox.showwarning("Subject Retrieval Error", "Could not fetch subjects. Using default list.")
+            return [
+                "Mathematics", 
+                "Science", 
+                "History", 
+                "English", 
+                "Computer Science", 
+                "Physics", 
+                "Chemistry"
+            ]
+
+    def _insert_default_subjects(self, subjects):
+        """
+        Insert default subjects into the database if they don't exist
+        """
+        try:
+            inserted_ids = self.db_manager.insert_subjects(subjects)
+            if inserted_ids:
+                self.logger.info("Default subjects inserted successfully")
+            else:
+                self.logger.warning("No subjects were inserted")
+        except Exception as e:
+            self.logger.warning(f"Could not insert default subjects: {e}")
 
     def _face_login(self):
         if not self.face_recognizer.is_model_trained():
@@ -124,17 +189,15 @@ class FacultyLoginWindow:
                 faculty_id, confidence = self.face_recognizer.recognize_face(face_img)
 
                 if faculty_id:
-                    faculty = self.db_manager.find_documents('faculty', {'faculty_id': faculty_id})
+                    faculty_cursor = self.db_manager.find_documents('faculty', {'faculty_id': faculty_id})
+                    faculty = list(faculty_cursor)
                     if faculty:
                         recognized = True
                         messagebox.showinfo("Login Success", f"Welcome {faculty[0]['name']}")
                         break
 
             if recognized:
-                report = tk.Toplevel(self.window)
-                report.title("Manual Login")
-                report.geometry("400x300")
-                FacultyWindow(self.parent)
+                self._open_faculty_window()
                 break
 
             cv2.imshow('Faculty Login', frame)
@@ -231,3 +294,7 @@ class FacultyLoginWindow:
         )
         register_btn.pack(pady=20)
 
+    def _open_faculty_window(self):
+        for widget in self.parent.winfo_children():
+            widget.destroy()
+        FacultyWindow(self.parent)

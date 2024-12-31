@@ -30,9 +30,8 @@ class StudentAttendanceWindow:
         self._create_attendance_window()
 
     def _create_attendance_window(self):
-        self.window = tk.Toplevel(self.parent)
-        self.window.title("Student Attendance")
-        self.window.geometry("1000x700")
+        self.window = tk.Frame(self.parent)
+        self.window.pack(expand=True, fill='both')
 
         # Subject Selection
         tk.Label(self.window, text="Select Subject", font=("Arial", 16)).pack(pady=10)
@@ -253,6 +252,13 @@ class StudentAttendanceWindow:
                                 'date': datetime.datetime.combine(today_date, datetime.datetime.min.time()),  # Convert to datetime
                                 'time': datetime.datetime.now()
                             })
+                            messagebox.showinfo("Attendance", f"Attendance for {student_name} captured successfully!")
+                        else:
+                            messagebox.showinfo("Attendance", f"Attendance for {student_name} already recorded for today.")
+                            cap.release()
+                            cv2.destroyAllWindows()
+                            self.window.destroy()
+                            return
 
             cv2.imshow("Face Recognition", frame)
 
@@ -261,5 +267,6 @@ class StudentAttendanceWindow:
 
         cap.release()
         cv2.destroyAllWindows()
-        messagebox.showinfo("Attendance", "Attendance captured successfully!")
+        if not recognized_students:
+            messagebox.showinfo("Attendance", "No new attendance captured.")
         self.window.destroy()
